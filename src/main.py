@@ -57,12 +57,6 @@ class Window:
                         case pg.K_r:
                             Physics.reset()
 
-                        # case pg.K_s:
-                        #     self.playing = not self.playing
-
-                        # case pg.K_p:
-                        #     self.playing = not self.playing
-                        
                         case pg.K_SPACE:
                             self.playing = not self.playing
 
@@ -82,12 +76,26 @@ class Window:
                             self.move_down = False
 
                 case pg.MOUSEBUTTONDOWN:
-                    if event.button == 3:
-                        self.mouseForceDir *= -1
-                    self.holding = True
+                    match event.button:
+                        case 1: # lmb
+                            self.mouseForceDir = 1
+                            self.holding = True
+                        case 3:
+                            self.mouseForceDir = -1
+                            self.holding = True
+
+                        case 4: # mw up
+                            Physics.mouseForceRadius += 1
+                        case 5:
+                            Physics.mouseForceRadius -= 1
+
 
                 case pg.MOUSEBUTTONUP:
-                    self.holding = False
+                    match event.button:
+                        case 1:
+                            self.holding = False
+                        case 3:
+                            self.holding = False
 
                 case pg.USEREVENT:
                     if event.user_type == pygame_gui.UI_HORIZONTAL_SLIDER_MOVED:
@@ -108,7 +116,6 @@ class Window:
 
                         Physics.viscosity = sliderViscosity.value
                         Physics.radius = sliderRadius.value
-                        Physics.attractionForce = sliderAttractionForce.value
                         Physics.gravity[1] = sliderGravity.value
                             
                         Physics.smoothingRadius = sliderSmoothingRadius.value
@@ -215,7 +222,7 @@ class Window:
             # ]
 
             neighborsArray = Lst(
-                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=15))
+                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=Physics.smoothingRadius+3))
                 for i in range(Physics.numParticles)
             )
             
@@ -227,20 +234,6 @@ class Window:
                 Physics.maxForce,
                 Physics.smoothingRadius
             )
-
-            # neighborsArrayOG = [
-            #     Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=25)
-            #     for i in range(Physics.numParticles)
-            # ]
-
-            # Physics.calculateForcesOG(
-            #     Physics.addedVelocities,
-            #     Physics.predictedPositions,
-            #     neighborsArray, 
-            #     Physics.numParticles,
-            #     Physics.maxForce,
-            #     Physics.smoothingRadius
-            #     )
 
             # Physics.velocities += Physics.addedVelocities * self.dt * Physics.viscosity
             # Physics.velocities += Physics.gravity * self.dt
@@ -274,40 +267,37 @@ if __name__ == '__main__':
     FPS = 60
 
     sliderNumParticles = SerializeField(
-        0,0, "Particles: ", (1, 2500), 4
+        0,0, "Particles: ", (1, 5000), 4
         )
     
     sliderRadius = SerializeField(
-        0, 30, "Radius: ", (1, 50), 5
+        0, 30, "Radius: ", (1, 25), 5
         )
     
     sliderParticleSpacing = SerializeField(
-        0, 60, "Particle spacing: ", (1, 15), 2
+        0, 60, "Particle spacing: ", (0.1, 15), 2
     )
     
 
-    sliderAttractionForce = SerializeField(
-        WIDTH-SerializeField.winSize[0]//4, 0, "Attraction force: ", (0, 1), 0.4) 
-    
     sliderViscosity = SerializeField(
-        WIDTH-SerializeField.winSize[0]//4, 30, 'Viscosity: ', (0.00001, 1), 1
+        WIDTH-SerializeField.winSize[0]//4, 0, 'Viscosity: ', (0, 1), 1
     )
 
     sliderSmoothingRadius = SerializeField(
-        WIDTH-SerializeField.winSize[0]//4, 60, 'Smoothing radius: ', (5, 100), 20
+        WIDTH-SerializeField.winSize[0]//4, 30, 'Smoothing radius: ', (0, 25), 15
     )
 
     sliderGravity = SerializeField(
-        WIDTH-SerializeField.winSize[0]//4, 90, 'Gravity: ', (-100, 100), 0
+        WIDTH-SerializeField.winSize[0]//4, 60, 'Gravity: ', (-100, 100), 0
         )
 
     window = Window()
 
     window.start()
     while window.running:
-        s = time.time()
+        # s = time.time()
         window.update()
-        print(time.time()-s)
+        # print(time.time()-s)
 
     pg.quit()
     sys.exit()

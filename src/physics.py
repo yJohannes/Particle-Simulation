@@ -20,17 +20,15 @@ class Physics:
     spatialRadius = 15
 
     gravity = np.array([0, 0])
-    attractionRadius = 2
-    attractionForce = 0.4
     smoothingRadius = 15
-    # SR 15 917 PARTICLES GRAVITY 41
     mouseForceRadius = 75
 
+    # SR 15 917 PARTICLES GRAVITY 41
+
     radius = 5
-    viscosity = 0.5
+    viscosity = 1
     bounciness = 0.5
     timestep = 1 # 0.14
-    epsilon = 3 #10
     maxForce = 800 # 400
 
     # for arranging particles
@@ -53,32 +51,34 @@ class Physics:
         ):
         
         addedVelocities[:] = 0 
-        # laita rangeNumParticles
         for i in range(numParticles):
-            # neighbors = neighborsArray[i][neighborsArray[i] !=i]
-            # if np.any(neighbors):
-            # mielummin jos pituus yli 1 ehkä mut silti surkee
-                neighbors = neighborsArray[i]
+            neighbors = neighborsArray[i]
+            if neighbors.size > 1:
                 distVectors = predictedPositions[i] - predictedPositions[neighbors]
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
                 distsNonzero = np.nonzero(dists)
 
-                # laita dists nexaxis ehkä
-
-                # vectorize  ei voi
                 forces = np.minimum(
-                    maxForce,
-                    np.maximum(
-                        -5,
-                        (smoothingRadius - dists[distsNonzero]) ** 3
-                        ) # - Physics.attractionForce
-                        )
+                    maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
+                )
 
-                # distUnitVectors = distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
-                # forceVectors = forces[:, np.newaxis] * distUnitVectors
                 forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
-
                 addedVelocities[i] = np.sum(forceVectors, axis=0)
+
+        for i in range(numParticles):
+            neighbors = neighborsArray[i]
+            if neighbors.size > 1:
+                distVectors = predictedPositions[i] - predictedPositions[neighbors]
+                dists = np.sqrt(np.sum(distVectors**2, axis=1))
+                distsNonzero = np.nonzero(dists)[0]
+
+                forces = np.minimum(
+                    maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
+                )
+
+                forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
+                addedVelocities[i] = np.sum(forceVectors, axis=0)
+        # KANI
 
     def calculateForcesOG(
         addedVelocities,
@@ -105,7 +105,7 @@ class Physics:
                     maxForce,
                     np.maximum(
                         -5,
-                        (smoothingRadius - dists - 2) ** 3 #[dists_nonzero]
+                        (smoothingRadius -2 - dists) ** 3 #[dists_nonzero]
                         ) # - Physics.attractionForce
                         )
                 
@@ -140,15 +140,15 @@ class Physics:
 
     def arrangeParticles():
         particlesPerRow = int(math.sqrt(Physics.numParticles))
-        particlesPerCol = (Physics.numParticles - 1) / particlesPerRow + 1
+        particlesPerCol = (Physics.numParticles - 1) // particlesPerRow + 1
         spacing = Physics.radius * 2 + Physics.particleSpacing
 
-        offsetX = 400 - particlesPerRow / 2 
-        offsetY = 300 - particlesPerCol / 2
+        offsetX = 400 - particlesPerRow // 2 
+        offsetY = 300 - particlesPerCol // 2
 
         for i in range(Physics.numParticles):
-            xPos = offsetX + (i % particlesPerRow - particlesPerRow / 2 + 0.5) * spacing
-            yPos = offsetY + (i / particlesPerRow - particlesPerCol / 2 + 0.5) * spacing
+            xPos = offsetX + (i % particlesPerRow - particlesPerRow // 2 + 0.5) * spacing
+            yPos = offsetY + (i // particlesPerRow - particlesPerCol // 2 + 0.5) * spacing
             Physics.positions[i] = np.array([xPos, yPos])
 
     def particleForce(dist):
