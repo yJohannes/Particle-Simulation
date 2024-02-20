@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from numba import jit, njit
+from numba import jit, njit, prange, types, typed, float64
 from random import uniform
 
 import time
@@ -51,7 +51,7 @@ class Physics:
         ):
         
         addedVelocities[:] = 0 
-        for i in range(numParticles):
+        for i in prange(numParticles):
             neighbors = neighborsArray[i]
             if neighbors.size > 1:
                 distVectors = predictedPositions[i] - predictedPositions[neighbors]
@@ -65,20 +65,39 @@ class Physics:
                 forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
                 addedVelocities[i] = np.sum(forceVectors, axis=0)
 
-        for i in range(numParticles):
-            neighbors = neighborsArray[i]
-            if neighbors.size > 1:
-                distVectors = predictedPositions[i] - predictedPositions[neighbors]
-                dists = np.sqrt(np.sum(distVectors**2, axis=1))
-                distsNonzero = np.nonzero(dists)[0]
+        # para kokeily
+        # addedVelocities[:] = 0 
+        # for i in prange(numParticles):
+        #     neighbors = neighborsArray[i]
+        #     if neighbors.size > 1:
+        #         distVectors = predictedPositions[i] - predictedPositions[neighbors]
+        #         dists = np.sqrt(np.sum(distVectors**2, axis=1))
+        #         distsNonzero = np.nonzero(dists > 0)[0]
 
-                forces = np.minimum(
-                    maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
-                )
+        #         forces = np.minimum(
+        #             maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
+        #         )
 
-                forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
-                addedVelocities[i] = np.sum(forceVectors, axis=0)
-        # KANI
+        #         forceVectors = np.zeros((distsNonzero.size, 3), dtype=np.float64)
+        #         forceVectors[:, 0] = forces
+        #         forceVectors[:, 1:] = distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
+        #         addedVelocities[i] += np.sum(forceVectors, axis=0)
+
+        # return addedVelocities
+
+        # for i in range(numParticles):
+        #     neighbors = neighborsArray[i]
+        #     if neighbors.size > 1:
+        #         distVectors = predictedPositions[i] - predictedPositions[neighbors]
+        #         dists = np.sqrt(np.sum(distVectors**2, axis=1))
+        #         distsNonzero = np.nonzero(dists)[0]
+
+        #         forces = np.minimum(
+        #             maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
+        #         )
+
+        #         forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
+        #         addedVelocities[i] = np.sum(forceVectors, axis=0)
 
     def calculateForcesOG(
         addedVelocities,
@@ -139,7 +158,7 @@ class Physics:
 
 
     def arrangeParticles():
-        particlesPerRow = int(math.sqrt(Physics.numParticles))
+        particlesPerRow = int(np.sqrt(Physics.numParticles))
         particlesPerCol = (Physics.numParticles - 1) // particlesPerRow + 1
         spacing = Physics.radius * 2 + Physics.particleSpacing
 

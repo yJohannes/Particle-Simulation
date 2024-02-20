@@ -163,6 +163,7 @@ class Window:
 
 
     def update(self):
+        start = time.perf_counter()
         if self.nextFrame:
             self.playing = False
             self.nextFrame = False
@@ -175,14 +176,17 @@ class Window:
         SerializeField.manager.update(self.dt)
         SerializeField.draw(self.screen)
         
-
-        s =time.time()
         self.drawParticles()
         self.simulation()
         self.drawBorders()
-        # print(time.time()-s)
 
         pg.display.flip()
+        timeElapsed = time.perf_counter() - start
+
+        # realFPS = 1 / timeElapsed
+        # force smooth fix ??
+        Physics.timestep = 1 / (60 * timeElapsed)
+
 
 
     def simulation(self):
@@ -222,10 +226,10 @@ class Window:
             # ]
 
             neighborsArray = Lst(
-                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=Physics.smoothingRadius+3))
+                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=Physics.smoothingRadius+5))
                 for i in range(Physics.numParticles)
             )
-            
+            # Physics.addedVelocities = 
             Physics.calculateForces(
                 Physics.addedVelocities,
                 Physics.predictedPositions,
@@ -280,7 +284,7 @@ if __name__ == '__main__':
     
 
     sliderViscosity = SerializeField(
-        WIDTH-SerializeField.winSize[0]//4, 0, 'Viscosity: ', (0, 1), 1
+        WIDTH-SerializeField.winSize[0]//4, 0, 'Viscosity: ', (0.0, 1.0), 1
     )
 
     sliderSmoothingRadius = SerializeField(
