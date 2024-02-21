@@ -1,6 +1,7 @@
 
 
-
+from numba.typed import List as Lst
+from numpy import array
 from colour import Color
 
 # darkBlue = Color('#120b96')
@@ -15,8 +16,9 @@ red = Color('#ff0000')
 gradientLen = 15
 
 # gradientColors = list(blue.range_to(red, gradientLen))
+# gradientColors = array(array(int(c.red * 255), int(c.green * 255), int(c.blue * 255)) for c in blue.range_to(red, gradientLen))
 gradientColors = [(int(c.red * 255), int(c.green * 255), int(c.blue * 255)) for c in blue.range_to(red, gradientLen)]
-# print(gradientColors)
+
 
 vMax = 300
 scaleFactor = (gradientLen) / vMax

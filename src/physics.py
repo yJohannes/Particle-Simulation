@@ -21,7 +21,6 @@ class Physics:
 
     gravity = np.array([0, 0])
     smoothingRadius = 15
-    mouseForceRadius = 75
 
     # SR 15 917 PARTICLES GRAVITY 41
 
@@ -37,10 +36,16 @@ class Physics:
     # background grid size
     gridSize = 50
     gridColor = (50,50,50)
+
+    mouseForceColor = (100,100,128)
+    mouseForceRadius = 75
+
     
     # parallel=True JOSKUS EHKÄ
     # @jit(nopython=True)
-    @njit()
+    # fastmath=True
+    # cache=True, fastmath=True
+    @njit(cached=True)
     def calculateForces(
         addedVelocities: np.ndarray,
         predictedPositions: np.ndarray,
@@ -57,12 +62,13 @@ class Physics:
                 distVectors = predictedPositions[i] - predictedPositions[neighbors]
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
                 distsNonzero = np.nonzero(dists)
-
+                
                 forces = np.minimum(
                     maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
                 )
-
+                # forces, distVectors, dists = np.broadcast_arrays(forces[:, np.newaxis], distVectors[distsNonzero], dists[distsNonzero][:, np.newaxis])
                 forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
+                # forceVectors = forces * distVectors / dists
                 addedVelocities[i] = np.sum(forceVectors, axis=0)
 
         # para kokeily
@@ -188,7 +194,7 @@ class Physics:
         return np.minimum(600, force)
 
     # TÄHÄN ON PAKKO OLLA PAREMPI TAPA; ESIM JOKU RECT
-    @njit()
+    @njit(cache=True)
     def borderCollisions(positions, velocities, radius, bounciness, x1, x2, y1, y2):
         left_mask = positions[:, 0] < x1 + radius
         right_mask = positions[:, 0] > x2 - radius

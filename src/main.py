@@ -5,8 +5,8 @@ from pygame.draw import circle
 import numpy as np 
 from numpy.linalg import norm
 
-from numba import jit
-from numba.typed import List as Lst
+from numba import njit, prange
+from numba.typed import List as numbaList
 
 import time
 from scipy.spatial import cKDTree
@@ -19,7 +19,9 @@ from gradient import *
 
 class Window:
     def __init__(self):
-        self.screen = pg.display.set_mode((WIDTH, HEIGHT))
+        self.screen = pg.display.set_mode((WIDTH, HEIGHT)) #, pg.OPENGL)
+        # pg.display.gl_set_attribute(pg.GL_ACCELERATED_VISUAL, 1)
+
         pg.display.set_caption("Particle Simulation")
         self.clock = pg.time.Clock()
         self.running = True
@@ -169,34 +171,36 @@ class Window:
             self.nextFrame = False
 
         self.processEvents()
+        self.dt = self.clock.tick(FPS) / 1000.0
+
         self.screen.fill(BLACK)
         self.drawGrid()
 
-        self.dt = self.clock.tick(FPS) / 1000.0
         SerializeField.manager.update(self.dt)
         SerializeField.draw(self.screen)
-        
-        self.drawParticles()
+
         self.simulation()
+        self.drawParticles()
         self.drawBorders()
 
         pg.display.flip()
         timeElapsed = time.perf_counter() - start
-
         # realFPS = 1 / timeElapsed
         # force smooth fix ??
-        Physics.timestep = 1 / (60 * timeElapsed)
+        Physics.timestep = 1 / (FPS * timeElapsed)
 
 
 
     def simulation(self):
         if self.playing:
             Physics.predictedPositions = Physics.positions + Physics.velocities * self.dt * Physics.timestep
+            startTree = time.perf_counter()
             Physics.tree = cKDTree(Physics.predictedPositions)
+            print(f"TREE: {time.perf_counter() - startTree}")
 
             if self.holding:
                 mx, my = pg.mouse.get_pos()
-                circle(self.screen, (100,100,128), (mx, my), Physics.mouseForceRadius, 2)
+                circle(self.screen, Physics.mouseForceColor, (mx, my), Physics.mouseForceRadius, 2)
 
                 # hitaampi luoda mut nopeempi laskee
                 cursorPos = np.array([mx, my])
@@ -216,7 +220,7 @@ class Window:
                     distUnitVectors = distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
                     forceVectors = distUnitVectors * forces[:, np.newaxis]
 
-                    Physics.velocities[nearIndices] += self.mouseForceDir * forceVectors * self.dt
+                    Physics.velocities[nearIndices] += self.mouseForceDir * forceVectors * self.dt * Physics.timestep
 
             # SAIRASTA
                     
@@ -225,10 +229,14 @@ class Window:
             #     for i in range(Physics.numParticles)
             # ]
 
-            neighborsArray = Lst(
+            startNeigh = time.perf_counter()
+            neighborsArray = numbaList(
                 np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=Physics.smoothingRadius+5))
                 for i in range(Physics.numParticles)
             )
+            print(f"INITNEIGH: {time.perf_counter() - startNeigh}")
+
+            startForces = time.perf_counter()
             # Physics.addedVelocities = 
             Physics.calculateForces(
                 Physics.addedVelocities,
@@ -238,12 +246,15 @@ class Window:
                 Physics.maxForce,
                 Physics.smoothingRadius
             )
-
+            print(f"FORCES: {time.perf_counter()-startForces}")
             # Physics.velocities += Physics.addedVelocities * self.dt * Physics.viscosity
             # Physics.velocities += Physics.gravity * self.dt
+            startVel = time.perf_counter()
             Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
             Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
+            print(f"addVel {time.perf_counter() - startVel}")
 
+            startBorder = time.perf_counter()
             # moved up here
             Physics.borderCollisions(
                 Physics.positions,
@@ -252,18 +263,48 @@ class Window:
                 Physics.bounciness,
                 self.x1, self.x2, self.y1, self.y2
             )
+            print(f"BORDER: {time.perf_counter()-startBorder}")
             
+    @njit(cache=True)
+    def drawCalculations(velocities, numParticles, gradientColors):
+        norms = np.sqrt(np.sum(velocities**2, axis=1))
+        colorIDs = np.minimum((norms * scaleFactor), gradientLen - 1, dtype=int)
+        colorIDs[2]
+        gradientColors[colorIDs[2]]
+        colors = np.array([gradientColors[colorIDs[i]] for i in range(numParticles)])
+
+        return colors
+
     def drawParticles(self):
         norms = norm(Physics.velocities, axis=1)
         colorIDs = np.minimum((norms * scaleFactor).astype(int), gradientLen - 1)
+        positions = Physics.positions.astype(int)
+        
+        # positions = Physics.positions.astype(int)
 
+        # colors = Window.drawCalculations(
+        #     Physics.velocities,
+        #     Physics.numParticles,
+        #     gradientColors
+        #     )
+
+        # for i in range(Physics.numParticles):
+        #     circle(
+        #         self.screen,
+        #         colors[i],
+        #         positions[i],
+        #         Physics.radius
+        #         )
+
+        # precalculate colors?
         for i in range(Physics.numParticles):
             circle(
                 self.screen,
                 gradientColors[colorIDs[i]],
-                Physics.positions[i],
+                positions[i],
                 Physics.radius
                 )
+
 
 if __name__ == '__main__':
     pg.init()
@@ -271,7 +312,7 @@ if __name__ == '__main__':
     FPS = 60
 
     sliderNumParticles = SerializeField(
-        0,0, "Particles: ", (1, 5000), 4
+        0,0, "Particles: ", (1, 10000), 4
         )
     
     sliderRadius = SerializeField(
