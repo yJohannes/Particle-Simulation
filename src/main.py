@@ -144,16 +144,16 @@ class Window:
         pg.draw.rect(self.screen, (230,230,230), rect, 1) # (100, 255, 100)
 
     def drawGrid(self):
-        maxWidth = WIDTH+Physics.gridSize
-        maxHeight = HEIGHT+Physics.gridSize
+        maxWidth = WIDTH+Physics.gridSquareSize
+        maxHeight = HEIGHT+Physics.gridSquareSize
 
-        # for i_x in range(0, maxWidth, Physics.gridSize):
+        # for i_x in range(0, maxWidth, Physics.gridSquareSize):
         #     pg.draw.line(self.screen, Physics.gridColor, (i_x, 0), (i_x, HEIGHT))
 
-        # for i_y in range(0, maxHeight, Physics.gridSize):
+        # for i_y in range(0, maxHeight, Physics.gridSquareSize):
         #     pg.draw.line(self.screen, Physics.gridColor, (0, i_y), (WIDTH, i_y))
 
-        for i in range(0, maxWidth, Physics.gridSize):
+        for i in range(0, maxWidth, Physics.gridSquareSize):
             pg.draw.line(self.screen, Physics.gridColor, (i, 0), (i, HEIGHT))
             
             if i <= maxWidth:
@@ -182,10 +182,10 @@ class Window:
         self.simulation()
         self.drawParticles()
         self.drawBorders()
-
+        # tensorflow pytorch
         pg.display.flip()
         timeElapsed = time.perf_counter() - start
-        # realFPS = 1 / timeElapsed
+        realFPS = 1 / timeElapsed
         # force smooth fix ??
         Physics.timestep = 1 / (FPS * timeElapsed)
 
@@ -194,9 +194,9 @@ class Window:
     def simulation(self):
         if self.playing:
             Physics.predictedPositions = Physics.positions + Physics.velocities * self.dt * Physics.timestep
-            startTree = time.perf_counter()
+            # startTree = time.perf_counter()
             Physics.tree = cKDTree(Physics.predictedPositions)
-            print(f"TREE: {time.perf_counter() - startTree}")
+            # print(f"TREE: {time.perf_counter() - startTree}")
 
             if self.holding:
                 mx, my = pg.mouse.get_pos()
@@ -229,14 +229,15 @@ class Window:
             #     for i in range(Physics.numParticles)
             # ]
 
-            startNeigh = time.perf_counter()
+            # startNeigh = time.perf_counter()
+
             neighborsArray = numbaList(
                 np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=Physics.smoothingRadius+5))
                 for i in range(Physics.numParticles)
             )
-            print(f"INITNEIGH: {time.perf_counter() - startNeigh}")
+            # print(f"INITNEIGH: {time.perf_counter() - startNeigh}")
 
-            startForces = time.perf_counter()
+            # startForces = time.perf_counter()
             # Physics.addedVelocities = 
             Physics.calculateForces(
                 Physics.addedVelocities,
@@ -244,17 +245,18 @@ class Window:
                 neighborsArray, 
                 Physics.numParticles,
                 Physics.maxForce,
-                Physics.smoothingRadius
+                Physics.smoothingRadius,
+                Physics.gridSquareSize
             )
-            print(f"FORCES: {time.perf_counter()-startForces}")
+            # print(f"FORCES: {time.perf_counter()-startForces}")
             # Physics.velocities += Physics.addedVelocities * self.dt * Physics.viscosity
             # Physics.velocities += Physics.gravity * self.dt
-            startVel = time.perf_counter()
+            # startVel = time.perf_counter()
             Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
             Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
-            print(f"addVel {time.perf_counter() - startVel}")
+            # print(f"addVel {time.perf_counter() - startVel}")
 
-            startBorder = time.perf_counter()
+            # startBorder = time.perf_counter()
             # moved up here
             Physics.borderCollisions(
                 Physics.positions,
@@ -263,23 +265,31 @@ class Window:
                 Physics.bounciness,
                 self.x1, self.x2, self.y1, self.y2
             )
-            print(f"BORDER: {time.perf_counter()-startBorder}")
+            # print(f"BORDER: {time.perf_counter()-startBorder}")
             
-    @njit(cache=True)
-    def drawCalculations(velocities, numParticles, gradientColors):
-        norms = np.sqrt(np.sum(velocities**2, axis=1))
-        colorIDs = np.minimum((norms * scaleFactor), gradientLen - 1, dtype=int)
-        colorIDs[2]
-        gradientColors[colorIDs[2]]
-        colors = np.array([gradientColors[colorIDs[i]] for i in range(numParticles)])
+    # @njit(cache=True)
+    # def drawCalculations(velocities, numParticles, gradientColors):
+    #     norms = np.sqrt(np.sum(velocities**2, axis=1))
+    #     colorIDs = np.minimum((norms * scaleFactor), gradientLen - 1, dtype=int)
+    #     colorIDs[2]
+    #     gradientColors[colorIDs[2]]
+    #     colors = np.array([gradientColors[colorIDs[i]] for i in range(numParticles)])
 
-        return colors
+    #     return colors
 
     def drawParticles(self):
         norms = norm(Physics.velocities, axis=1)
         colorIDs = np.minimum((norms * scaleFactor).astype(int), gradientLen - 1)
         positions = Physics.positions.astype(int)
         
+        # precalculate colors?
+        for i in range(Physics.numParticles):
+            circle(
+                self.screen,
+                gradientColors[colorIDs[i]],
+                positions[i],
+                Physics.radius
+                )
         # positions = Physics.positions.astype(int)
 
         # colors = Window.drawCalculations(
@@ -295,15 +305,6 @@ class Window:
         #         positions[i],
         #         Physics.radius
         #         )
-
-        # precalculate colors?
-        for i in range(Physics.numParticles):
-            circle(
-                self.screen,
-                gradientColors[colorIDs[i]],
-                positions[i],
-                Physics.radius
-                )
 
 
 if __name__ == '__main__':
@@ -337,7 +338,6 @@ if __name__ == '__main__':
         )
 
     window = Window()
-
     window.start()
     while window.running:
         # s = time.time()
