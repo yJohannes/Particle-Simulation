@@ -224,10 +224,10 @@ class Window:
 
             # SAIRASTA
                     
-            # neighborsArray = [
-            #     np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=15))
-            #     for i in range(Physics.numParticles)
-            # ]
+            neighborsArray = [
+                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=15))
+                for i in range(Physics.numParticles)
+            ]
 
             # startNeigh = time.perf_counter()
 
