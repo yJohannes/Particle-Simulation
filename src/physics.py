@@ -45,13 +45,13 @@ class Physics:
     viscosity = 1
     bounciness = 0.5
     timestep = 1 # 0.14
-    maxForce = 800 # 400
+    # maxForce = 800 # 400
 
     # for arranging particles
     particleSpacing = 2
 
     # background grid size
-    gridSquareSize = 200
+    gridSquareSize = 50
     gridColor = (50,50,50)
 
     mouseForceColor = (100,100,128)
@@ -72,36 +72,13 @@ class Physics:
         predictedPositions: np.ndarray,
         neighborsArray: types.List, #np.ndarray,
         numParticles: int,
-        maxForce: int,
         smoothingRadius: int,
         ):
 
         addedVelocities.fill(0)
 
-        # NOTE: np.concatenate 
-        # assign grid index by position
-        # grid2D = predictedPositions.astype(np.int64) // gridSquareSize
-
-        # convert to 1d grid
-        # grid1D = grid2D[:,1] * 16 + grid2D[:,0]
-        
-        # particleGroups = [typed.List.empty_list(np.int64) for _ in range(192)]
-        # particleGroups = typed.List(particleGroups)
-
-        # for i in prange(numParticles):
-            # particle i's grid index
-            # particleGroup: np.int64 = grid1D[i]
-            # particleGroups[particleGroup].append(i)
-
-
-
         for i in prange(numParticles):
-            # gridPos2D = predictedPositions[i].astype(np.int64) // gridSquareSize
-            # groupID = gridPos2D[1] * 4 + gridPos2D[0]
-            # neighbors = neighborsArray[groupID]
             neighbors = neighborsArray[i]
-            # print(neighbors)
-
             if neighbors.size > 1:
                 distVectors = predictedPositions[i] - predictedPositions[neighbors]
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
@@ -111,13 +88,13 @@ class Physics:
                 #     maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
                 # )
 
-                forces = np.minimum(
-                    maxForce,
-                    np.maximum(
-                        -5,
-                        (smoothingRadius -2 - dists[distsNonzero]) ** 3 #[dists_nonzero]
-                        )
-                        )
+                # forces = np.minimum(
+                #     maxForce,
+                forces = np.maximum(
+                    -5,
+                    (smoothingRadius -2 - dists[distsNonzero]) ** 3 #[dists_nonzero]
+                    )
+                        # )
 
                 # paranna
                 forces, distVectors, dists = np.broadcast_arrays(forces[:, np.newaxis], distVectors[distsNonzero], dists[distsNonzero][:, np.newaxis])

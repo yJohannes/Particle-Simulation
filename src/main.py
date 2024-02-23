@@ -190,14 +190,17 @@ class Window:
         self.simulation()
         self.drawParticles()
         self.drawBorders()
+
+        PointForce.draw(self.screen)
+        
         # tensorflow pytorch
         pg.display.flip()
         timeElapsed = time.perf_counter() - start
         # realFPS = 1 / timeElapsed
         realFPS = 1 / self.dt
         # force smooth fix ??
-        Physics.timestep = 1 / (realFPS * timeElapsed)
-        print(Physics.timestep)
+        Physics.timestep = 1 / (FPS * timeElapsed)
+        # print(Physics.timestep)
 
         # frames rendered within 
         # frames = realFPS * self.dt
@@ -243,9 +246,6 @@ class Window:
                     # NOTE: nearIndices can be larger than distsNonzero => ValueError
                     Physics.velocities[nearIndices] += self.mouseForceDir * forceVectors * self.dt * Physics.timestep
 
-
-                
-    
             """
        workers | time / 5 000 queries
             1  | 61.38 ms
@@ -271,7 +271,6 @@ class Window:
                 Physics.predictedPositions,
                 neighborsArray, 
                 Physics.numParticles,
-                Physics.maxForce,
                 Physics.smoothingRadius
             )
 
@@ -334,11 +333,11 @@ if __name__ == '__main__':
 
     sliderNumParticles = SerializeField(
         0,0, "Particles: ", (1, 10_000), 5047
-        )
+    )
     
     sliderRadius = SerializeField(
         0, 30, "Radius: ", (1, 25), 5
-        )
+    )
     
     sliderParticleSpacing = SerializeField(
         0, 60, "Particle spacing: ", (0.1, 15), 2
@@ -355,7 +354,16 @@ if __name__ == '__main__':
 
     sliderGravity = SerializeField(
         WIDTH-SerializeField.winSize[0]//4, 60, 'Gravity: ', (-100, 100), 0
-        )
+    )
+    
+    from ForceObjects import *
+
+    pointForce1 = PointForce(
+        x=350,
+        y=400,
+        forceRadius=40,
+        forceFunction=lambda x: np.sin(x)
+    )
 
     window = Window()
     window.start()
