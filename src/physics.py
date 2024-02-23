@@ -78,31 +78,27 @@ class Physics:
 
         # NOTE: np.concatenate 
         # assign grid index by position
-        grid2D = predictedPositions.astype(np.int64) // gridSquareSize
+        # grid2D = predictedPositions.astype(np.int64) // gridSquareSize
 
         # convert to 1d grid
-        grid1D = grid2D[:,1] * 16 + grid2D[:,0]
+        # grid1D = grid2D[:,1] * 16 + grid2D[:,0]
         
-        particleGroups = [typed.List.empty_list(np.int64) for _ in range(192)]
-        particleGroups = typed.List(particleGroups)
+        # particleGroups = [typed.List.empty_list(np.int64) for _ in range(192)]
+        # particleGroups = typed.List(particleGroups)
 
-        np.ravel_multi_index
-        
-        np.concatenate
-        for i in prange(numParticles):
+        # for i in prange(numParticles):
             # particle i's grid index
-            particleGroup: np.int64 = grid1D[i]
-            particleGroups[particleGroup].append(i)
+            # particleGroup: np.int64 = grid1D[i]
+            # particleGroups[particleGroup].append(i)
 
 
         for i in prange(numParticles):
-            gridPos2D = predictedPositions[i].astype(np.int64) // gridSquareSize
-            groupID = gridPos2D[1] * 16 + gridPos2D[0]
+            # gridPos2D = predictedPositions[i].astype(np.int64) // gridSquareSize
+            # groupID = gridPos2D[1] * 16 + gridPos2D[0]
             # print(groupID)
-            # neighbors = neighborsArray[i]
-            neighbors = 0
-            # if neighbors.size > 1:
-            if neighbors:
+            neighbors = neighborsArray[i]
+            if neighbors.size > 1:
+            # if neighbors:
                 distVectors = predictedPositions[i] - predictedPositions[neighbors]
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
                 distsNonzero = dists > 0

@@ -30,6 +30,8 @@ class Window:
         self.nextFrame = False
         self.mouseForceDir = 1
 
+        self.dt = 1/60
+
         self.x1 = 0
         self.x2 = WIDTH - 1
         self.y1 = 0
@@ -173,6 +175,8 @@ class Window:
         self.processEvents()
         self.dt = self.clock.tick(FPS) / 1000.0
 
+        # print(self.dt)
+
         self.screen.fill(BLACK)
         self.drawGrid()
 
@@ -187,7 +191,8 @@ class Window:
         timeElapsed = time.perf_counter() - start
         realFPS = 1 / timeElapsed
         # force smooth fix ??
-        Physics.timestep = 1 / (FPS * timeElapsed)
+        # Physics.timestep = 1 / (FPS * timeElapsed)
+        # self.dt = 1 / (FPS * timeElapsed)
 
 
 
@@ -224,10 +229,10 @@ class Window:
 
             # SAIRASTA
                     
-            neighborsArray = [
-                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=15))
-                for i in range(Physics.numParticles)
-            ]
+            # neighborsArray = [
+            #     np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=15))
+            #     for i in range(Physics.numParticles)
+            # ]
 
             # startNeigh = time.perf_counter()
 
