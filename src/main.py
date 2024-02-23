@@ -241,6 +241,17 @@ class Window:
                 for i in range(Physics.numParticles)
             )
             # print(f"INITNEIGH: {time.perf_counter() - startNeigh}")
+            
+            grid_indices = (Physics.predictedPositions // Physics.gridSquareSize).astype(int)
+            flattened_indices = grid_indices[:, 0] + grid_indices[:, 1] * (800 // 50)
+
+            unique_elements, occur_indices = np.unique(flattened_indices, return_inverse=True)
+
+            neighborsArray = [np.array(...) for _ in range(16*12)]
+            for i, element in enumerate ( unique_elements ):
+                neighborsArray[element] = np.where(occur_indices == i)
+
+            neighborsArray = numbaList(neighborsArray)
 
             # startForces = time.perf_counter()
             # Physics.addedVelocities = 

@@ -9,11 +9,13 @@ positions = np.array([[0.,   2.], # 0
                       [251., 80.],# 2
                       [10.,  2.]])# 0
 
+numParticles = 5
+
 # Define grid cell size
 cell_size = np.array([50, 50])
 
 # Convert positions to grid indices
-grid_indices = (positions / cell_size).astype(int)
+grid_indices = (positions // cell_size).astype(int)
 
 # Calculate flattened indices
 flattened_indices = grid_indices[:, 0] + grid_indices[:, 1] * (800 // 50)
@@ -25,6 +27,22 @@ unique_elements, occur_indices = np.unique(flattened_indices, return_inverse=Tru
 print("      Unique elements:", unique_elements)
 print("Indices of occurrence:", occur_indices)
 
+gridList = [-1 for _ in range(16*12)]
+
+
+unique_elements, occur_indices = np.unique(flattened_indices, return_inverse=True)
+
+gridList = [[] for _ in range(16*12)]
+for i, element in enumerate ( unique_elements ):
+    gridList[element] = np.where(occur_indices == i)
+
+gridList = np.full((occur_indices.size))
+
+unique_elements, occur_indices = np.unique(flattened_indices, return_inverse=True)
+gridList = np.zeros((16*12, flattened_indices.size), dtype=int) - 1
+gridList[occur_indices, np.arange(flattened_indices.size)] = np.arange(flattened_indices.size)
+
+print(gridList)
 
 # 1: yhdistä uniikkien elementtien indeksit indekseihin, joista ne löytyvät 
 # 2: yhdistä 
@@ -33,11 +51,26 @@ print("Indices of occurrence:", occur_indices)
 # esim. occ : id 4 numero kertoo mitä 
 "⭠ ⭡ ⭢ ⭣ ↖ ↗ ↘ ↙"
 
-"""                       0   1   2   3   4                                          
-Indices of occurrence: [  0   3   1   2   0]
-                                      
+# unique elements ovat ruudut. occur_indices on hiukkasten id
+"""                         
+
+gridList = [ [] for _ in range( numParticles ) ]
+for i, element in enumerate(unique_elements):
+    gridList[element] = np.where(occur_indices == i)
+
+    # uniikkia_elementtiä_i_vastaavat_löydät_lytätystä_listasta
+    x = np.where(occur_indices == i)
+    [  0   3   1   2   0] == 0
+    >>> 0, 4
+    Eli hiukkaset 0,4 ovat gridissä 0. 
+    
+    flattened_indices = hiukkasen i sijainti gridissä
+
                           0   1   2   3
       Unique elements: [  0  16  21 128]
+
+                          0   1   2   3   4  
+Indices of occurrence: [  0   3   1   2   0]
 
                           0   1   2   3   4
     Flattened indices: [  0 128  16  21   0]

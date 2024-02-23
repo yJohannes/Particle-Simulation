@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, prange, int32
+from numba import njit, prange, int32, int64
 from numba import typed
 from numba import types
 
@@ -67,7 +67,7 @@ class Physics:
     def calculateForces(
         addedVelocities: np.ndarray,
         predictedPositions: np.ndarray,
-        neighborsArray: np.ndarray,
+        neighborsArray: types.List(int64), #np.ndarray,
         numParticles: int,
         maxForce: int,
         smoothingRadius: int,
@@ -92,13 +92,15 @@ class Physics:
             # particleGroups[particleGroup].append(i)
 
 
+
         for i in prange(numParticles):
-            # gridPos2D = predictedPositions[i].astype(np.int64) // gridSquareSize
-            # groupID = gridPos2D[1] * 16 + gridPos2D[0]
-            # print(groupID)
-            neighbors = neighborsArray[i]
+            gridPos2D = predictedPositions[i].astype(np.int64) // gridSquareSize
+            groupID = gridPos2D[1] * 16 + gridPos2D[0]
+            neighbors = neighborsArray[groupID]
+            print(neighbors)
+            assert True == False, "kana"
+            # neighbors = neighborsArray[i]
             if neighbors.size > 1:
-            # if neighbors:
                 distVectors = predictedPositions[i] - predictedPositions[neighbors]
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
                 distsNonzero = dists > 0
