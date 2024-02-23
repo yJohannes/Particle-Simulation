@@ -5,6 +5,20 @@ import numba
 from numba import types, typed, prange
 
 
+            # grid_indices = (Physics.predictedPositions // Physics.gridSquareSize).astype(int)
+            # flattened_indices = grid_indices[:, 0] + grid_indices[:, 1] * 4
+            # unique_elements, occur_indices = np.unique(flattened_indices, return_inverse=True,)
+
+            # neighborsArray = numbaList(
+            #     np.full((1,), -1, dtype=np.int64)
+            #     for i in range(12)
+            # )
+
+            # for i, element in enumerate ( unique_elements ):
+            #     neighborsArray[element] = np.where(occur_indices == i)[0]
+
+
+
 positions = np.array([[0.,   2.],
                       [37., 400.],
                       [25., 67.],

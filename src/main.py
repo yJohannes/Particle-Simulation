@@ -6,7 +6,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from numba import njit, prange
-from numba.typed import List as numbaList
+from numba.typed import List as Lst
 
 import time
 from scipy.spatial import cKDTree
@@ -16,6 +16,10 @@ from colors import *
 from physics import Physics
 from SerializeField import *
 from gradient import *
+
+# TODO:
+# add planets that exert forces via spatial search to nearby particles :)
+# optimize cKDTree creation
 
 class Window:
     def __init__(self):
@@ -189,27 +193,38 @@ class Window:
         # tensorflow pytorch
         pg.display.flip()
         timeElapsed = time.perf_counter() - start
-        realFPS = 1 / timeElapsed
+        # realFPS = 1 / timeElapsed
+        realFPS = 1 / self.dt
         # force smooth fix ??
-        # Physics.timestep = 1 / (FPS * timeElapsed)
-        # self.dt = 1 / (FPS * timeElapsed)
+        Physics.timestep = 1 / (realFPS * timeElapsed)
+        print(Physics.timestep)
+
+        # frames rendered within 
+        # frames = realFPS * self.dt
+        # print(frames)
+        # Physics.timestep = frames
+
+        # FPS = FRAMES / dt 
+        # FRAMES = FPS * dt
 
 
 
     def simulation(self):
         if self.playing:
+            # update predicted positions
             Physics.predictedPositions = Physics.positions + Physics.velocities * self.dt * Physics.timestep
+
             # startTree = time.perf_counter()
+
+            # TODO: OPTIMIZE
             Physics.tree = cKDTree(Physics.predictedPositions)
             # print(f"TREE: {time.perf_counter() - startTree}")
 
             if self.holding:
                 mx, my = pg.mouse.get_pos()
-                circle(self.screen, Physics.mouseForceColor, (mx, my), Physics.mouseForceRadius, 2)
-
-                # hitaampi luoda mut nopeempi laskee
                 cursorPos = np.array([mx, my])
-                # cursorPos = [mx, my]
+
+                circle(self.screen, Physics.mouseForceColor, (mx, my), Physics.mouseForceRadius, 2)
 
                 nearIndices = Physics.tree.query_ball_point(
                     x=cursorPos,
@@ -220,60 +235,50 @@ class Window:
                     forceVectors = np.zeros_like(nearIndices)
                     distVectors = Physics.predictedPositions[nearIndices] - cursorPos
                     dists = norm(distVectors, axis=1)
-                    distsNonzero = np.nonzero(dists)
-                    forces = 2 * dists + 6 * Physics.smoothingRadius
+                    distsNonzero = dists > 0 # np.nonzero(dists)
+                    forces = 2 * dists[distsNonzero] + 6 * Physics.smoothingRadius
                     distUnitVectors = distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
                     forceVectors = distUnitVectors * forces[:, np.newaxis]
 
+                    # NOTE: nearIndices can be larger than distsNonzero => ValueError
                     Physics.velocities[nearIndices] += self.mouseForceDir * forceVectors * self.dt * Physics.timestep
 
-            # SAIRASTA
-                    
-            # neighborsArray = [
-            #     np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=15))
-            #     for i in range(Physics.numParticles)
-            # ]
 
-            # startNeigh = time.perf_counter()
+                
+    
+            """
+       workers | time / 5 000 queries
+            1  | 61.38 ms
+            4  | 38.31 ms
+            6  | 39.13 ms
+            7  | 30.92 ms
+            7  | 32.03 ms
+            8  | 35.45 ms
+            8  | 37.89 ms
+            16 | 50.82 ms
+            -1 | 34.04 ms
+            """
 
-            neighborsArray = numbaList(
-                np.array(Physics.tree.query_ball_point(x=Physics.predictedPositions[i], r=Physics.smoothingRadius+5))
-                for i in range(Physics.numParticles)
-            )
-            # print(f"INITNEIGH: {time.perf_counter() - startNeigh}")
-            
-            grid_indices = (Physics.predictedPositions // Physics.gridSquareSize).astype(int)
-            flattened_indices = grid_indices[:, 0] + grid_indices[:, 1] * (800 // 50)
+            neighborsArray = Physics.tree.query_ball_point(
+                                Physics.predictedPositions,
+                                Physics.smoothingRadiusOffset,
+                                workers=7
+                            )
+            neighborsArray = Lst(np.array(arr) for arr in neighborsArray)
 
-            unique_elements, occur_indices = np.unique(flattened_indices, return_inverse=True)
-
-            neighborsArray = [np.array(...) for _ in range(16*12)]
-            for i, element in enumerate ( unique_elements ):
-                neighborsArray[element] = np.where(occur_indices == i)
-
-            neighborsArray = numbaList(neighborsArray)
-
-            # startForces = time.perf_counter()
-            # Physics.addedVelocities = 
             Physics.calculateForces(
                 Physics.addedVelocities,
                 Physics.predictedPositions,
                 neighborsArray, 
                 Physics.numParticles,
                 Physics.maxForce,
-                Physics.smoothingRadius,
-                Physics.gridSquareSize
+                Physics.smoothingRadius
             )
-            # print(f"FORCES: {time.perf_counter()-startForces}")
-            # Physics.velocities += Physics.addedVelocities * self.dt * Physics.viscosity
-            # Physics.velocities += Physics.gravity * self.dt
-            # startVel = time.perf_counter()
+
             Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
             Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
-            # print(f"addVel {time.perf_counter() - startVel}")
 
-            # startBorder = time.perf_counter()
-            # moved up here
+
             Physics.borderCollisions(
                 Physics.positions,
                 Physics.velocities,
@@ -281,8 +286,7 @@ class Window:
                 Physics.bounciness,
                 self.x1, self.x2, self.y1, self.y2
             )
-            # print(f"BORDER: {time.perf_counter()-startBorder}")
-            
+
     # @njit(cache=True)
     # def drawCalculations(velocities, numParticles, gradientColors):
     #     norms = np.sqrt(np.sum(velocities**2, axis=1))
@@ -295,6 +299,7 @@ class Window:
 
     def drawParticles(self):
         norms = norm(Physics.velocities, axis=1)
+
         colorIDs = np.minimum((norms * scaleFactor).astype(int), gradientLen - 1)
         positions = Physics.positions.astype(int)
         
@@ -322,14 +327,13 @@ class Window:
         #         Physics.radius
         #         )
 
-
 if __name__ == '__main__':
     pg.init()
     WIDTH, HEIGHT = 800, 600
     FPS = 60
 
     sliderNumParticles = SerializeField(
-        0,0, "Particles: ", (1, 10000), 4
+        0,0, "Particles: ", (1, 10_000), 5047
         )
     
     sliderRadius = SerializeField(
