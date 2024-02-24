@@ -85,22 +85,34 @@ class Physics:
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
                 distsNonzero = dists > 0
                 
-                forces = np.maximum(
-                    -5,
-                    (smoothingRadius -2 - dists[distsNonzero]) ** 3
+                # forces = np.maximum(
+                #     -5,
+                #     (smoothingRadius -5 - dists[distsNonzero]) ** 3
+                #     )
+                
+                # particle i repels neighbors
+                repulsiveForces = np.maximum(
+                    0,
+                    (smoothingRadius - dists[distsNonzero]) ** 3
                     )
                 # paras sr = 25
                 
-
-
                 # for parallel only
-                forces, distVectors, dists = np.broadcast_arrays(forces[:, np.newaxis], distVectors[distsNonzero], dists[distsNonzero][:, np.newaxis])
-                forceVectors = forces * distVectors / dists
+                repulsiveForces, distVectors, dists = np.broadcast_arrays(repulsiveForces[:, np.newaxis], distVectors[distsNonzero], dists[distsNonzero][:, np.newaxis])
+                forceVectors = repulsiveForces * distVectors / dists
 
                 # forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
 
-
                 addedVelocities[i] = np.sum(forceVectors, axis=0)
+
+                # particle i pulls neighbors
+                # attractiveForces = np.maximum(
+                #     0,
+                #     dists[distsNonzero] * (smoothingRadius - dists[distsNonzero])
+                #     )
+                
+                # forceVectors2 = attractiveForces * distVectors / dists
+                # addedVelocities[neighbors] -= np.sum(forceVectors2, axis=0)
 
         velocities += timestep * dt * (addedVelocities * viscosity + gravity)
         positions += timestep * dt * velocities

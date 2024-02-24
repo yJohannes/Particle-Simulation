@@ -18,10 +18,12 @@ from SerializeField import *
 from gradient import *
 
 # TODO:
+# add viscosity like Sebastian Lague at 35:00
 # add planets that exert forces via spatial search to nearby particles :)
 # optimize cKDTree creation
 # solve the best settings for smoothing radius & others
 # best was sr = 25 with current (soon to be old ones)
+
 
 class Window:
     def __init__(self):
@@ -118,7 +120,7 @@ class Window:
                             case sliderParticleSpacing.slider:
                                 Physics.particleSpacing = sliderParticleSpacing.value
                                 Physics.arrangeParticles()
-                                
+
                         Physics.spatialRadius = sliderSpatialRadius.value
 
                         Physics.viscosity = sliderViscosity.value
@@ -229,6 +231,14 @@ class Window:
                 Physics.timestep
             )
 
+            teleporterNeighbours = Physics.tree.query_ball_point(
+                x = [tel.pos for tel in Teleporter.teleporters],
+                r = [tel.radius for tel in Teleporter.teleporters]
+            )
+
+            for i, tel in enumerate(Teleporter.teleporters):
+                tel.teleport(teleporterNeighbours[i], Physics.positions)
+
             """
        workers | time / 5 000 queries
             1  | 61.38 ms
@@ -265,9 +275,9 @@ class Window:
             )
             end = time.perf_counter()
 
-            text_surface = SerializeField.font.render(f"Calculation time: {end-start}", True, WHITE)
+            text_surface = SerializeField.font.render(f"Calculation time: {round(end-start, 4)} s", True, WHITE)
             
-            self.screen.blit(text_surface, (15, 300))
+            self.screen.blit(text_surface, (15, 120))
 
             # Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
             # Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
@@ -282,16 +292,17 @@ class Window:
 
     def drawParticles(self):
         norms: np.ndarray = norm(Physics.velocities, axis=1)
-
         colorIDs = np.minimum((norms * scaleFactor).astype(int), gradientLen - 1)
-        positions = Physics.positions.astype(int)
+        # pygame.draw.circle would have to truncate the 
+        # position coordinates which causes overhead
+        intPositions = Physics.positions.astype(int)
         
-        # precalculate colors?
+        # precalculate colors?  
         for i in range(Physics.numParticles):
             circle(
                 self.screen,
                 gradientColors[colorIDs[i]],
-                positions[i],
+                intPositions[i],
                 Physics.radius
                 )
 
@@ -335,11 +346,18 @@ if __name__ == '__main__':
         WIDTH-SerializeField.winSize[0]//4, 90, 'Gravity y: ', (-100, 100), 0
     )
 
-    pointForce1 = PointForce(
-        pos=np.array([350, 400]),
-        forceRadius=400,
-        forceFunction=lambda x: 90 * np.sin(0.14*x)
+    # pointForce1 = PointForce(
+    #     pos=np.array([400, 300]),
+    #     forceRadius=300,
+    #     forceFunction=lambda x: 90 * np.sin(0.14*x)
+    # )
+
+    teleporter1 = Teleporter(
+        pos=np.array([400, 600]),
+        teleportPos=np.array([400,0]),
+        radius=40
     )
+
 
     mouseForce = MouseForce(
         forceFunction=None
