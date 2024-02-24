@@ -20,6 +20,8 @@ from gradient import *
 # TODO:
 # add planets that exert forces via spatial search to nearby particles :)
 # optimize cKDTree creation
+# solve the best settings for smoothing radius & others
+# best was sr = 25 with current (soon to be old ones)
 
 class Window:
     def __init__(self):
@@ -30,11 +32,7 @@ class Window:
         self.clock = pg.time.Clock()
         self.running = True
         self.playing = True
-        self.holding = False
         self.nextFrame = False
-        self.mouseForceDir = 1
-
-        self.dt = 1/60
 
         self.x1 = 0
         self.x2 = WIDTH - 1
@@ -86,24 +84,24 @@ class Window:
                 case pg.MOUSEBUTTONDOWN:
                     match event.button:
                         case 1: # lmb
-                            self.mouseForceDir = 1
-                            self.holding = True
+                            mouseForce.forceDir = 1
+                            mouseForce.active = True
                         case 3:
-                            self.mouseForceDir = -1
-                            self.holding = True
+                            mouseForce.forceDir = -1
+                            mouseForce.active = True
 
                         case 4: # mw up
-                            Physics.mouseForceRadius += 1
+                            mouseForce.forceRadius += 1
                         case 5:
-                            Physics.mouseForceRadius -= 1
+                            mouseForce.forceRadius -= 1
 
 
                 case pg.MOUSEBUTTONUP:
                     match event.button:
                         case 1:
-                            self.holding = False
+                            mouseForce.active = False
                         case 3:
-                            self.holding = False
+                            mouseForce.active = False
 
                 case pg.USEREVENT:
                     if event.user_type == pygame_gui.UI_HORIZONTAL_SLIDER_MOVED:
@@ -120,11 +118,15 @@ class Window:
                             case sliderParticleSpacing.slider:
                                 Physics.particleSpacing = sliderParticleSpacing.value
                                 Physics.arrangeParticles()
-            
+                                
+                        Physics.spatialRadius = sliderSpatialRadius.value
 
                         Physics.viscosity = sliderViscosity.value
                         Physics.radius = sliderRadius.value
-                        Physics.gravity[1] = sliderGravity.value
+                        Physics.gravity[0] = sliderGravityX.value
+
+                        Physics.gravity[1] = sliderGravityY.value
+
                             
                         Physics.smoothingRadius = sliderSmoothingRadius.value
                 
@@ -147,22 +149,16 @@ class Window:
         # käytä vaan rect mitä ohjaillaan laittamalla
         # height +- 1 ja width +- 1 ni 
         rect = pg.Rect(self.x1, self.y1, self.x2 - self.x1, self.y2 - self.y1)
-        pg.draw.rect(self.screen, (230,230,230), rect, 1) # (100, 255, 100)
+        pg.draw.rect(self.screen, (230,230,230), rect, 1)
 
     def drawGrid(self):
         maxWidth = WIDTH+Physics.gridSquareSize
         maxHeight = HEIGHT+Physics.gridSquareSize
 
-        # for i_x in range(0, maxWidth, Physics.gridSquareSize):
-        #     pg.draw.line(self.screen, Physics.gridColor, (i_x, 0), (i_x, HEIGHT))
-
-        # for i_y in range(0, maxHeight, Physics.gridSquareSize):
-        #     pg.draw.line(self.screen, Physics.gridColor, (0, i_y), (WIDTH, i_y))
-
         for i in range(0, maxWidth, Physics.gridSquareSize):
             pg.draw.line(self.screen, Physics.gridColor, (i, 0), (i, HEIGHT))
             
-            if i <= maxWidth:
+            if i <= maxHeight:
                 pg.draw.line(self.screen, Physics.gridColor, (0, i), (WIDTH, i))
 
 
@@ -177,9 +173,8 @@ class Window:
             self.nextFrame = False
 
         self.processEvents()
+        mouseForce.update()
         self.dt = self.clock.tick(FPS) / 1000.0
-
-        # print(self.dt)
 
         self.screen.fill(BLACK)
         self.drawGrid()
@@ -188,6 +183,7 @@ class Window:
         SerializeField.draw(self.screen)
 
         self.simulation()
+        mouseForce.draw(self.screen)
         self.drawParticles()
         self.drawBorders()
 
@@ -198,23 +194,18 @@ class Window:
         timeElapsed = time.perf_counter() - start
         # realFPS = 1 / timeElapsed
         realFPS = 1 / self.dt
+
         # force smooth fix ??
         Physics.timestep = 1 / (FPS * timeElapsed)
-        # print(Physics.timestep)
 
-        # frames rendered within 
-        # frames = realFPS * self.dt
-        # print(frames)
-        # Physics.timestep = frames
-
-        # FPS = FRAMES / dt 
-        # FRAMES = FPS * dt
 
 
 
     def simulation(self):
         if self.playing:
-            # update predicted positions
+            # performing calculations with "predicted positoins"
+            # helps particles to settle down
+
             Physics.predictedPositions = Physics.positions + Physics.velocities * self.dt * Physics.timestep
 
             # startTree = time.perf_counter()
@@ -223,28 +214,20 @@ class Window:
             Physics.tree = cKDTree(Physics.predictedPositions)
             # print(f"TREE: {time.perf_counter() - startTree}")
 
-            if self.holding:
-                mx, my = pg.mouse.get_pos()
-                cursorPos = np.array([mx, my])
+            # testi, paranna myöhemmin
+            forceObjectNeighbours = Physics.tree.query_ball_point(
+                x = [obj.pos for obj in forceObjects],
+                r = [obj.forceRadius for obj in forceObjects]
+            )
 
-                circle(self.screen, Physics.mouseForceColor, (mx, my), Physics.mouseForceRadius, 2)
-
-                nearIndices = Physics.tree.query_ball_point(
-                    x=cursorPos,
-                    r=Physics.mouseForceRadius
-                    )
-
-                if nearIndices:
-                    forceVectors = np.zeros_like(nearIndices)
-                    distVectors = Physics.predictedPositions[nearIndices] - cursorPos
-                    dists = norm(distVectors, axis=1)
-                    distsNonzero = dists > 0 # np.nonzero(dists)
-                    forces = 2 * dists[distsNonzero] + 6 * Physics.smoothingRadius
-                    distUnitVectors = distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
-                    forceVectors = distUnitVectors * forces[:, np.newaxis]
-
-                    # NOTE: nearIndices can be larger than distsNonzero => ValueError
-                    Physics.velocities[nearIndices] += self.mouseForceDir * forceVectors * self.dt * Physics.timestep
+            Physics.calculateObjectForces(
+                Physics.velocities,
+                Physics.predictedPositions,
+                forceObjectNeighbours,
+                forceObjects,
+                self.dt,
+                Physics.timestep
+            )
 
             """
        workers | time / 5 000 queries
@@ -261,22 +244,33 @@ class Window:
 
             neighborsArray = Physics.tree.query_ball_point(
                                 Physics.predictedPositions,
-                                Physics.smoothingRadiusOffset,
+                                Physics.spatialRadius,
                                 workers=7
                             )
             neighborsArray = Lst(np.array(arr) for arr in neighborsArray)
 
+            start = time.perf_counter()
             Physics.calculateForces(
                 Physics.addedVelocities,
                 Physics.predictedPositions,
+                Physics.velocities,
+                Physics.positions,
                 neighborsArray, 
                 Physics.numParticles,
-                Physics.smoothingRadius
+                Physics.smoothingRadius,
+                Physics.viscosity,
+                Physics.gravity,
+                self.dt,
+                Physics.timestep
             )
+            end = time.perf_counter()
 
-            Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
-            Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
+            text_surface = SerializeField.font.render(f"Calculation time: {end-start}", True, WHITE)
+            
+            self.screen.blit(text_surface, (15, 300))
 
+            # Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
+            # Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
 
             Physics.borderCollisions(
                 Physics.positions,
@@ -286,18 +280,8 @@ class Window:
                 self.x1, self.x2, self.y1, self.y2
             )
 
-    # @njit(cache=True)
-    # def drawCalculations(velocities, numParticles, gradientColors):
-    #     norms = np.sqrt(np.sum(velocities**2, axis=1))
-    #     colorIDs = np.minimum((norms * scaleFactor), gradientLen - 1, dtype=int)
-    #     colorIDs[2]
-    #     gradientColors[colorIDs[2]]
-    #     colors = np.array([gradientColors[colorIDs[i]] for i in range(numParticles)])
-
-    #     return colors
-
     def drawParticles(self):
-        norms = norm(Physics.velocities, axis=1)
+        norms: np.ndarray = norm(Physics.velocities, axis=1)
 
         colorIDs = np.minimum((norms * scaleFactor).astype(int), gradientLen - 1)
         positions = Physics.positions.astype(int)
@@ -310,29 +294,17 @@ class Window:
                 positions[i],
                 Physics.radius
                 )
-        # positions = Physics.positions.astype(int)
-
-        # colors = Window.drawCalculations(
-        #     Physics.velocities,
-        #     Physics.numParticles,
-        #     gradientColors
-        #     )
-
-        # for i in range(Physics.numParticles):
-        #     circle(
-        #         self.screen,
-        #         colors[i],
-        #         positions[i],
-        #         Physics.radius
-        #         )
 
 if __name__ == '__main__':
     pg.init()
     WIDTH, HEIGHT = 800, 600
     FPS = 60
 
+    from ForceObjects import *
+
+
     sliderNumParticles = SerializeField(
-        0,0, "Particles: ", (1, 10_000), 5047
+        0,0, "Particles: ", (1, 5_000), 4
     )
     
     sliderRadius = SerializeField(
@@ -342,7 +314,10 @@ if __name__ == '__main__':
     sliderParticleSpacing = SerializeField(
         0, 60, "Particle spacing: ", (0.1, 15), 2
     )
-    
+
+    sliderSpatialRadius = SerializeField(
+        0, 90, "Spatial radius: ", (1, 40), 20
+    )
 
     sliderViscosity = SerializeField(
         WIDTH-SerializeField.winSize[0]//4, 0, 'Viscosity: ', (0.0, 1.0), 1
@@ -352,17 +327,22 @@ if __name__ == '__main__':
         WIDTH-SerializeField.winSize[0]//4, 30, 'Smoothing radius: ', (0, 25), 15
     )
 
-    sliderGravity = SerializeField(
-        WIDTH-SerializeField.winSize[0]//4, 60, 'Gravity: ', (-100, 100), 0
+    sliderGravityX = SerializeField(
+        WIDTH-SerializeField.winSize[0]//4, 60, 'Gravity x: ', (-100, 100), 0
     )
-    
-    from ForceObjects import *
+
+    sliderGravityY = SerializeField(
+        WIDTH-SerializeField.winSize[0]//4, 90, 'Gravity y: ', (-100, 100), 0
+    )
 
     pointForce1 = PointForce(
-        x=350,
-        y=400,
-        forceRadius=40,
-        forceFunction=lambda x: np.sin(x)
+        pos=np.array([350, 400]),
+        forceRadius=400,
+        forceFunction=lambda x: 90 * np.sin(0.14*x)
+    )
+
+    mouseForce = MouseForce(
+        forceFunction=None
     )
 
     window = Window()

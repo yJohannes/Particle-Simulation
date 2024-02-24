@@ -37,7 +37,6 @@ class Physics:
 
     gravity = np.array([0, 0])
     smoothingRadius = 15
-    smoothingRadiusOffset = smoothingRadius+5
 
     # SR 15 917 PARTICLES GRAVITY 41
 
@@ -54,11 +53,6 @@ class Physics:
     gridSquareSize = 50
     gridColor = (50,50,50)
 
-    mouseForceColor = (100,100,128)
-    mouseForceRadius = 75
-
-
-
     # | 10 000 PARTICLES |
     # w/o parallel : 130 ms
     #   w parallel : 40 ms
@@ -70,10 +64,17 @@ class Physics:
     def calculateForces(
         addedVelocities: np.ndarray,
         predictedPositions: np.ndarray,
-        neighborsArray: types.List, #np.ndarray,
+        velocities: np.ndarray,
+        positions: np.ndarray,
+        neighborsArray: types.List,
         numParticles: int,
-        smoothingRadius: int,
-        ):
+        smoothingRadius: float,
+        viscosity: float,
+        gravity: np.ndarray,
+        dt: float,
+        timestep: float
+
+    ):
 
         addedVelocities.fill(0)
 
@@ -84,24 +85,56 @@ class Physics:
                 dists = np.sqrt(np.sum(distVectors**2, axis=1))
                 distsNonzero = dists > 0
                 
-                # forces = np.minimum(
-                #     maxForce, (smoothingRadius - dists[distsNonzero]) ** 3
-                # )
-
-                # forces = np.minimum(
-                #     maxForce,
                 forces = np.maximum(
                     -5,
-                    (smoothingRadius -2 - dists[distsNonzero]) ** 3 #[dists_nonzero]
+                    (smoothingRadius -2 - dists[distsNonzero]) ** 3
                     )
-                        # )
+                # paras sr = 25
+                
 
-                # paranna
+
+                # for parallel only
                 forces, distVectors, dists = np.broadcast_arrays(forces[:, np.newaxis], distVectors[distsNonzero], dists[distsNonzero][:, np.newaxis])
                 forceVectors = forces * distVectors / dists
 
                 # forceVectors = forces[:, np.newaxis] * distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
+
+
                 addedVelocities[i] = np.sum(forceVectors, axis=0)
+
+        velocities += timestep * dt * (addedVelocities * viscosity + gravity)
+        positions += timestep * dt * velocities
+
+        # 4 ms / 2 000 uusi
+        # vanha: 3,4,5 näkyy vaan / 2000
+
+
+
+    # @njit(cache=True)
+    def calculateObjectForces(
+        velocities: np.ndarray,
+        predictedPositions: np.ndarray,
+        neighborsArray: types.List,
+        objects: list[object],
+        dt: float,
+        timestep: float
+        ):
+    
+        for i, obj in enumerate(objects):
+            neighbors = neighborsArray[i]
+
+            if neighbors and obj.active:
+                # distv pitäs olla like distsnonzero?
+                distVectors = predictedPositions[neighbors] - obj.pos
+                dists = np.sqrt(np.sum(distVectors**2, axis=1))
+                distsNonzero = dists > 0
+                forces = obj.forceFunction(dists[distsNonzero])
+                distUnitVectors = distVectors[distsNonzero] / dists[distsNonzero][:, np.newaxis]
+                forceVectors = distUnitVectors * forces[:, np.newaxis]
+                # NOTE: nearIndices can be larger than distsNonzero => ValueError
+                velocities[neighbors] += forceVectors * dt * timestep
+
+        
 
     def calculateForcesOG(
         addedVelocities,
@@ -132,6 +165,7 @@ class Physics:
                         (smoothingRadius -2 - dists[dists_nonzero]) ** 3 #[dists_nonzero]
                         )
                         )
+                
                 # ENNEN
                     # np.maximum(
                     #     -5,
@@ -174,22 +208,6 @@ class Physics:
             yPos = offsetY + (i // particlesPerRow - particlesPerCol // 2 + 0.5) * spacing
             Physics.positions[i] = np.array([xPos, yPos])
 
-    def particleForce(dist):
-        return max(0, Physics.smoothingRadius - dist) ** 3 - Physics.attractionForce
-
-    def particleForces(dists):
-        return np.minimum(Physics.maxForce, np.maximum(0, Physics.smoothingRadius - dists) ** 3 - Physics.attractionForce)
-
-    def particleForces2(dists):
-        return np.minimum(Physics.maxForce, np.maximum((Physics.smoothingRadius-dists)**3,-np.e ** (Physics.smoothingRadius-dists)-Physics.attractionForce))
-
-    def LJpotential(dists):
-        potential = 4*Physics.epsilon*((Physics.smoothingRadius/dists)**12-(Physics.smoothingRadius/dists)**6) - Physics.attractionForce
-        return np.minimum(Physics.maxForce, potential)
-
-    def LJforce(dists):
-        force = 24*Physics.epsilon/dists*(2*(Physics.smoothingRadius/dists)**12-(Physics.smoothingRadius/dists)**6)
-        return np.minimum(600, force)
 
     # TÄHÄN ON PAKKO OLLA PAREMPI TAPA; ESIM JOKU RECT
     @njit(cache=True)
