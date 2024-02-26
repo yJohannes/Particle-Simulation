@@ -4,6 +4,10 @@ from numpy import array
 
 forceObjects = []
 
+def drawForceObjects():
+    for obj in forceObjects:
+        obj.draw()
+
 class MouseForce:
     color = (100,100,128)
 
@@ -70,43 +74,3 @@ class PointForce:
 
 class ForceField:
     ...
-
-class Pipe:
-    ...
-
-class Teleporter:
-    color=(77, 76, 107)
-
-    teleporters = []
-    def __init__(
-            self,
-            pos,
-            teleportPos,
-            radius: float
-            ) -> None:
-        
-        self.pos = pos
-        self.xy = (pos[0], pos[1])
-        self.radius = radius
-        self.teleportPos = teleportPos
-
-        Teleporter.teleporters.append(self)
-
-
-    def teleport(
-            self,
-            indices,
-            positions,
-            velocities=None,
-            resetVelocity=True
-            ):
-        
-        positions[indices] = self.teleportPos
-        if resetVelocity and velocities:
-            # add variety, the particles get stuck on top of each other
-            velocities[indices] = 0
-
-    @classmethod
-    def draw(cls, screen):
-        for teleporter in cls.teleporters:
-            circle(screen, cls.color, teleporter.xy, teleporter.radius)

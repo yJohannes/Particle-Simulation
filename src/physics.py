@@ -60,7 +60,7 @@ class Physics:
     # + no gil     : 40 ms
     # kokeile laittaa return
     
-    @njit(cache=True, parallel=True)#, nogil=True)#, boundscheck=False)
+    @njit(cache=True, parallel=True)#, nogil=True)#, boundscheck=False, fastmath=True)
     def calculateForces(
         addedVelocities: np.ndarray,
         predictedPositions: np.ndarray,
@@ -92,8 +92,8 @@ class Physics:
                 
                 # particle i repels neighbors
                 repulsiveForces = np.maximum(
-                    0,
-                    (smoothingRadius - dists[distsNonzero]) ** 3
+                    -5,
+                    (smoothingRadius -2 - dists[distsNonzero]) ** 3
                     )
                 # paras sr = 25
                 

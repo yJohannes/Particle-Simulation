@@ -185,14 +185,19 @@ class Window:
         SerializeField.draw(self.screen)
 
         self.simulation()
+
+        renderStart = time.perf_counter()
         mouseForce.draw(self.screen)
         self.drawParticles()
         self.drawBorders()
 
+        # Rectangle.draw(self.screen)
         PointForce.draw(self.screen)
         
-        # tensorflow pytorch
         pg.display.flip()
+        renderEnd = time.perf_counter()
+        renderTime = renderEnd-renderStart
+
         timeElapsed = time.perf_counter() - start
         # realFPS = 1 / timeElapsed
         realFPS = 1 / self.dt
@@ -282,6 +287,8 @@ class Window:
             # Physics.velocities +=  Physics.timestep * self.dt * (Physics.addedVelocities * Physics.viscosity + Physics.gravity)
             # Physics.positions +=   Physics.timestep * self.dt * Physics.velocities
 
+            # Rectangle.handleCollisions(Physics.positions, Physics.velocities)
+
             Physics.borderCollisions(
                 Physics.positions,
                 Physics.velocities,
@@ -312,7 +319,7 @@ if __name__ == '__main__':
     FPS = 60
 
     from ForceObjects import *
-
+    from Objects import *
 
     sliderNumParticles = SerializeField(
         0,0, "Particles: ", (1, 5_000), 4
@@ -357,6 +364,14 @@ if __name__ == '__main__':
         teleportPos=np.array([400,0]),
         radius=40
     )
+    teleporter1.active = False
+
+    # rectangle1 = Rectangle(
+    #     posWH=np.array([600, 450, 150, 300]),
+    #     repulsionBorderWidth=5
+    # )
+
+    
 
 
     mouseForce = MouseForce(
