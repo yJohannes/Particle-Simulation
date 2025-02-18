@@ -1,21 +1,22 @@
 import sys
+import time
+import numpy as np 
 import pygame as pg
 from pygame.draw import circle
-
-import numpy as np 
-from numpy.linalg import norm
 
 from numba import njit, prange
 from numba.typed import List as Lst
 
-import time
+from numpy.linalg import norm
 from scipy.spatial import cKDTree
 
 
 from colors import *
 from physics import Physics
-from SerializeField import *
+from slider_field import *
 from gradient import *
+from objects import *
+from force_objects import *
 
 # TODO:
 # add viscosity like Sebastian Lague at 35:00
@@ -317,9 +318,6 @@ if __name__ == '__main__':
     pg.init()
     WIDTH, HEIGHT = 800, 600
     FPS = 60
-
-    from ForceObjects import *
-    from Objects import *
 
     sliderNumParticles = SerializeField(
         0,0, "Particles: ", (1, 5_000), 4
