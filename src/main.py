@@ -319,6 +319,8 @@ if __name__ == '__main__':
     WIDTH, HEIGHT = 800, 600
     FPS = 60
 
+    window = Window()
+    window.start()
     sliderNumParticles = SerializeField(
         0,0, "Particles: ", (1, 5_000), 4
     )
@@ -376,8 +378,6 @@ if __name__ == '__main__':
         forceFunction=None
     )
 
-    window = Window()
-    window.start()
     while window.running:
         # s = time.time()
         window.update()
