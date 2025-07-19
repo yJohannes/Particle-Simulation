@@ -49,9 +49,9 @@ class SerializeField:
         self.slider = UIHorizontalSlider(
             relative_rect=pg.Rect((self.x, self.y), (self.width, self.height)),
             start_value=self.startValue,  # Initial value of the slider
-            value_range=(range),  # Minimum and maximum values of the slider
+            value_range=self.range,  # Minimum and maximum values of the slider
             manager=SerializeField.manager
-            )
+        )
         
         SerializeField.fields.append(self)
 
