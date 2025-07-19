@@ -117,11 +117,6 @@ class Physics:
         velocities += timestep * dt * (addedVelocities * viscosity + gravity)
         positions += timestep * dt * velocities
 
-        # 4 ms / 2 000 uusi
-        # vanha: 3,4,5 näkyy vaan / 2000
-
-
-
     # @njit(cache=True)
     def calculateObjectForces(
         velocities: np.ndarray,
