@@ -281,7 +281,7 @@ class Window:
             )
             end = time.perf_counter()
 
-            text_surface = SerializeField.font.render(f"Calculation time: {round(end-start, 4)} s", True, WHITE)
+            text_surface = SerializeField.font.render(f"Frame time: {round(end-start, 4)} s", True, WHITE)
             
             self.screen.blit(text_surface, (15, 120))
 
